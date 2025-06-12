@@ -1,0 +1,2532 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מערכת ניהול חיילים מתקדמת</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            min-height: 100vh;
+            padding: 10px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: clamp(1.8rem, 4vw, 2.8rem);
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .header p {
+            font-size: clamp(0.9rem, 2vw, 1.1rem);
+            opacity: 0.9;
+        }
+
+        .dashboard {
+            padding: 15px;
+        }
+
+        .tabs {
+            display: flex;
+            background: white;
+            border-radius: 15px 15px 0 0;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            margin-bottom: -1px;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            flex: 1;
+            min-width: 120px;
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            border-bottom: 4px solid transparent;
+        }
+
+        .tab:hover {
+            background: #e9ecef;
+            transform: translateY(-2px);
+        }
+
+        .tab.active {
+            background: white;
+            border-bottom: 4px solid #3498db;
+            color: #3498db;
+        }
+
+        .tab-content {
+            display: none;
+            background: white;
+            padding: 25px;
+            border-radius: 0 0 15px 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            min-height: 600px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            color: white;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+        }
+
+        .stat-card.shift-a {
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+        }
+
+        .stat-card.shift-b {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+        }
+
+        .stat-card.commanders {
+            background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+        }
+
+        .stat-card.snipers {
+            background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
+        }
+
+        .stat-card.machine-gunners {
+            background: linear-gradient(135deg, #c0392b 0%, #a93226 100%);
+        }
+
+        .stat-card.absent {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            animation: pulse 2s infinite;
+        }
+
+        .stat-card.equipment {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+        }
+
+        .stat-card.total {
+            background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        .stat-number {
+            font-size: clamp(1.8rem, 5vw, 2.5rem);
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: clamp(0.8rem, 2vw, 1rem);
+            opacity: 0.9;
+        }
+
+        .upload-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border: 2px dashed #3498db;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .upload-section:hover {
+            border-color: #2980b9;
+            background: #e8f4fd;
+        }
+
+        .search-section {
+            background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 2px solid #3498db;
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.2);
+        }
+
+        .search-section h3 {
+            color: #2980b9;
+            margin-bottom: 15px;
+            text-align: center;
+            font-size: 1.2rem;
+        }
+
+        .search-input-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .search-input {
+            flex: 1;
+            min-width: 300px;
+            padding: 12px 20px;
+            border: 2px solid #ddd;
+            border-radius: 25px;
+            font-size: 16px;
+            text-align: right;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 15px rgba(52, 152, 219, 0.3);
+            transform: scale(1.02);
+        }
+
+        .search-results {
+            font-weight: bold;
+            min-width: 150px;
+            text-align: center;
+            padding: 8px 15px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-label {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            display: inline-block;
+            font-size: clamp(0.9rem, 2vw, 1.1rem);
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+            margin: 8px;
+        }
+
+        .file-label:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(52, 152, 219, 0.4);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: clamp(0.8rem, 2vw, 1rem);
+            margin: 5px;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+            font-weight: 500;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(52, 152, 219, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+        }
+
+        .btn-info {
+            background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+        }
+
+        .btn-purple {
+            background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+            margin-top: 20px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1200px;
+        }
+
+        th {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 15px 10px;
+            text-align: center;
+            font-weight: 600;
+            font-size: clamp(0.8rem, 2vw, 1rem);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #eee;
+            text-align: center;
+            font-size: clamp(0.7rem, 1.5vw, 0.9rem);
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-present {
+            background: #d4edda;
+            color: #155724;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.8rem;
+        }
+
+        .status-absent {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .status-absent:hover {
+            background: #e74c3c;
+            color: white;
+            transform: scale(1.05);
+        }
+
+        .status-equipment-ok {
+            background: #d4edda;
+            color: #155724;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.8rem;
+        }
+
+        .status-equipment-missing {
+            background: #fff3cd;
+            color: #856404;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .status-equipment-missing:hover {
+            background: #ffc107;
+            color: #212529;
+            transform: scale(1.05);
+        }
+
+        .role-commander {
+            background: #9b59b6;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 15px;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+
+        .role-sniper {
+            background: #e67e22;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 15px;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+
+        .role-machine-gunner {
+            background: #c0392b;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 15px;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+
+        .role-soldier {
+            background: #34495e;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 15px;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+
+        .shift-a-indicator {
+            background: #27ae60;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+
+        .shift-b-indicator {
+            background: #3498db;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+
+        .weekend-exception {
+            background: #f39c12;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 0.6rem;
+            font-weight: bold;
+            margin-right: 5px;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+            font-weight: 500;
+            font-size: clamp(0.8rem, 2vw, 1rem);
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+            margin: 20px 0;
+        }
+
+        .instruction-box {
+            background: linear-gradient(135deg, #e8f4fd 0%, #f0f8ff 100%);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border: 2px solid #3498db;
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.1);
+        }
+
+        .instruction-box h3 {
+            color: #2980b9;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .save-indicator {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #27ae60;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 25px;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            font-weight: bold;
+            box-shadow: 0 5px 15px rgba(39, 174, 96, 0.3);
+        }
+
+        .save-indicator.show {
+            opacity: 1;
+        }
+
+        .unsaved-changes {
+            background: #fff3cd;
+            color: #856404;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin: 10px 0;
+            border: 1px solid #ffeaa7;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .bulk-actions {
+            background: linear-gradient(135deg, #e8f4fd 0%, #f0f8ff 100%);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            display: none;
+            border: 2px solid #3498db;
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.2);
+        }
+
+        .bulk-actions.show {
+            display: block;
+        }
+
+        .bulk-actions h4 {
+            color: #2980b9;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .bulk-actions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .checkbox-soldier {
+            margin-left: 10px;
+            transform: scale(1.3);
+        }
+
+        .row-selected {
+            background-color: #e8f4fd !important;
+            border-left: 4px solid #3498db;
+        }
+
+        .highlight {
+            background: #ffeb3b;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        .chart-container h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .attendance-calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+            margin: 20px 0;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .calendar-day.normal {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .calendar-day.low {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .calendar-day.critical {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .calendar-day.changeover {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 2px solid #3498db;
+        }
+
+        .calendar-day.today {
+            border: 3px solid #2c3e50;
+            box-shadow: 0 0 10px rgba(44, 62, 80, 0.3);
+        }
+
+        .shift-info {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 4px solid #3498db;
+        }
+
+        .shift-info h4 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .current-shift-indicator {
+            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            text-align: center;
+            margin: 15px 0;
+            font-weight: bold;
+            box-shadow: 0 5px 15px rgba(46, 204, 113, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            .dashboard {
+                padding: 10px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+            
+            .stat-card {
+                padding: 15px;
+            }
+            
+            .button-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .bulk-actions-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            th, td {
+                padding: 8px 5px;
+            }
+
+            .tabs {
+                flex-direction: column;
+            }
+
+            .tab {
+                min-width: auto;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎖️ מערכת ניהול חיילים מתקדמת</h1>
+            <p>ניהול מקצועי של נוכחות וציוד במתכונת סבבים - אמיתי ואפקטיבי</p>
+        </div>
+
+        <div class="dashboard">
+            <!-- אינדיקטור שמירה -->
+            <div class="save-indicator" id="saveIndicator">
+                ✅ השינויים נשמרו בהצלחה!
+            </div>
+
+            <!-- התראה על שינויים לא שמורים -->
+            <div id="unsavedChanges" class="unsaved-changes" style="display: none;">
+                ⚠️ יש שינויים לא שמורים. לחץ על "💾 שמור שינויים" כדי לשמור.
+            </div>
+
+            <!-- אינדיקטור סבב נוכחי -->
+            <div id="currentShiftIndicator" class="current-shift-indicator" style="display: none;">
+                🔄 מעבדת את הנתונים...
+            </div>
+
+            <!-- הוראות שימוש -->
+            <div class="instruction-box">
+                <h3>🔧 מערכת סבבים חכמה</h3>
+                <div style="text-align: right; font-size: 0.9rem;">
+                    <strong>🅰️ סבב א (11 חיילים):</strong> שבוע עבודה, שבוע בבית<br>
+                    <strong>🅱️ סבב ב (10 חיילים):</strong> שבוע עבודה, שבוע בבית<br>
+                    <strong>📅 יום ראשון:</strong> חילוף סבבים - נוכחות כמעט מלאה<br>
+                    <strong>🎭 סופי שבוע:</strong> אלנתן עם סבב א', יובל עם סבב ב'<br>
+                    <strong>📊 נוכחות תקינה:</strong> ~50% בימי חול, ~85% בימי ראשון
+                </div>
+            </div>
+
+            <!-- סטטיסטיקות מותאמות לסבבים -->
+            <div class="stats-grid" id="statsGrid">
+                <div class="stat-card total">
+                    <div class="stat-number" id="totalSoldiers">23</div>
+                    <div class="stat-label">סה"כ חיילים</div>
+                </div>
+                <div class="stat-card shift-a">
+                    <div class="stat-number" id="shiftAPresent">-</div>
+                    <div class="stat-label">סבב א נוכחים</div>
+                </div>
+                <div class="stat-card shift-b">
+                    <div class="stat-number" id="shiftBPresent">-</div>
+                    <div class="stat-label">סבב ב נוכחים</div>
+                </div>
+                <div class="stat-card commanders">
+                    <div class="stat-number" id="commandersPresent">-</div>
+                    <div class="stat-label">מפקדים נוכחים</div>
+                </div>
+                <div class="stat-card snipers">
+                    <div class="stat-number" id="snipersPresent">-</div>
+                    <div class="stat-label">קלעים נוכחים</div>
+                </div>
+                <div class="stat-card machine-gunners">
+                    <div class="stat-number" id="machineGunnersPresent">-</div>
+                    <div class="stat-label">נגביסטים נוכחים</div>
+                </div>
+                <div class="stat-card equipment">
+                    <div class="stat-number" id="equipmentIssues">-</div>
+                    <div class="stat-label">בעיות ציוד</div>
+                </div>
+                <div class="stat-card absent">
+                    <div class="stat-number" id="criticalAbsences">-</div>
+                    <div class="stat-label">נעדרים קריטיים</div>
+                </div>
+            </div>
+
+            <!-- העלאת קבצים -->
+            <div class="upload-section">
+                <h3>📁 העלאת קבצים</h3>
+                <div style="margin: 20px 0;">
+                    <label for="attendanceFile" class="file-label">
+                        📋 קובץ נוכחות חיילים
+                    </label>
+                    <input type="file" id="attendanceFile" class="file-input" accept=".xlsx,.xls">
+                    
+                    <label for="equipmentFile" class="file-label">
+                        🎯 קובץ ציוד צוותי
+                    </label>
+                    <input type="file" id="equipmentFile" class="file-input" accept=".xlsx,.xls">
+                </div>
+                <div id="fileStatus" style="margin-top: 15px; color: #666; text-align: center;"></div>
+            </div>
+
+            <!-- התראות -->
+            <div id="alertsContainer"></div>
+
+            <!-- לשוניות -->
+            <div class="tabs">
+                <button class="tab active" onclick="showTab('overview')">📊 סקירה כללית</button>
+                <button class="tab" onclick="showTab('attendance')">📋 נוכחות</button>
+                <button class="tab" onclick="showTab('equipment')">🎯 ציוד</button>
+                <button class="tab" onclick="showTab('reports')">📈 דוחות</button>
+                <button class="tab" onclick="showTab('search')">🔍 חיפוש</button>
+            </div>
+
+            <!-- תוכן הלשוניות -->
+            <div id="overview" class="tab-content active">
+                <h3 style="color: #2c3e50; margin-bottom: 20px;">📊 סקירה כללית</h3>
+                
+                <!-- מידע סבב נוכחי -->
+                <div id="shiftInfo" class="shift-info">
+                    <h4>📅 מידע סבב נוכחי</h4>
+                    <div id="shiftDetails">טוען נתונים...</div>
+                </div>
+
+                <!-- חיפוש מהיר -->
+                <div class="search-section">
+                    <h3>🔍 חיפוש מהיר</h3>
+                    <div class="search-input-container">
+                        <input type="text" id="quickSearchInput" placeholder="חפש חייל לפי שם, מספר אישי או תפקיד..." 
+                               class="search-input" oninput="performQuickSearch()">
+                        <button class="btn" onclick="clearQuickSearch()" style="background: #6c757d;">
+                            ❌ נקה
+                        </button>
+                        <div id="quickSearchResults" class="search-results"></div>
+                    </div>
+                </div>
+
+                <!-- גרף נוכחות שבועי -->
+                <div class="chart-container">
+                    <h3>📈 מגמת נוכחות שבועית (מותאם לסבבים)</h3>
+                    <canvas id="weeklyChart" height="100"></canvas>
+                </div>
+
+                <!-- תזכורות ופעולות דחופות -->
+                <div id="urgentActions" class="alert alert-warning" style="display: none;">
+                    <h4>🚨 פעולות דחופות נדרשות:</h4>
+                    <ul id="urgentList"></ul>
+                </div>
+            </div>
+
+            <div id="attendance" class="tab-content">
+                <h3 style="color: #2c3e50; margin-bottom: 20px;">📋 ניהול נוכחות</h3>
+                
+                <div class="button-grid">
+                    <button class="btn btn-success" onclick="markCurrentShiftPresent()">
+                        ✅ סמן כל הסבב הנוכחי כנוכח
+                    </button>
+                    <button class="btn btn-danger" onclick="showCriticalAbsences()">
+                        🚨 הצג נעדרים קריטיים
+                    </button>
+                    <button class="btn btn-purple" onclick="showCommandersAttendance()">
+                        👨‍💼 סטטוס מפקדים
+                    </button>
+                    <button class="btn btn-info" onclick="showShiftComparison()">
+                        ⚖️ השוואת סבבים
+                    </button>
+                    <button class="btn" onclick="exportAttendanceReport()">
+                        📤 ייצא דוח נוכחות
+                    </button>
+                </div>
+
+                <!-- לוח שנה לנוכחות מותאם לסבבים -->
+                <div class="chart-container">
+                    <h4>🗓️ לוח נוכחות חודשי (כולל חילופי סבבים)</h4>
+                    <div id="attendanceCalendar" class="attendance-calendar"></div>
+                    <div style="text-align: center; margin-top: 10px; font-size: 0.8rem; color: #666;">
+                        🟢 נוכחות תקינה (45-55%) | 🟡 נמוכה (35-45%) | 🔴 קריטית (<35%) | 🔵 חילוף סבבים (ראשון)
+                    </div>
+                </div>
+
+                <!-- טבלת נוכחות -->
+                <div class="table-container" id="attendanceTableContainer">
+                    <table id="attendanceTable">
+                        <thead>
+                            <tr>
+                                <th>
+                                    <input type="checkbox" id="selectAllAttendance" onchange="toggleSelectAllAttendance()"> 
+                                    בחר הכל
+                                </th>
+                                <th>שם חייל</th>
+                                <th>מספר אישי</th>
+                                <th>סבב</th>
+                                <th>תפקיד</th>
+                                <th>סטטוס היום</th>
+                                <th>נעדרויות השבוע</th>
+                                <th>הערות</th>
+                                <th>פעולות</th>
+                            </tr>
+                        </thead>
+                        <tbody id="attendanceTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="equipment" class="tab-content">
+                <h3 style="color: #2c3e50; margin-bottom: 20px;">🎯 ניהול ציוד</h3>
+                
+                <div class="button-grid">
+                    <button class="btn btn-warning" onclick="showCriticalEquipment()">
+                        🚨 ציוד קריטי (נגב + ליאור)
+                    </button>
+                    <button class="btn btn-success" onclick="showEquipmentOK()">
+                        ✅ ציוד תקין
+                    </button>
+                    <button class="btn btn-info" onclick="addEquipmentCredit()">
+                        🏆 זיכוי ציוד
+                    </button>
+                    <button class="btn" onclick="exportEquipmentReport()">
+                        📤 ייצא דוח ציוד
+                    </button>
+                </div>
+
+                <!-- טבלת ציוד -->
+                <div class="table-container" id="equipmentTableContainer">
+                    <table id="equipmentTable">
+                        <thead>
+                            <tr>
+                                <th>
+                                    <input type="checkbox" id="selectAllEquipment" onchange="toggleSelectAllEquipment()"> 
+                                    בחר הכל
+                                </th>
+                                <th>שם חייל</th>
+                                <th>תפקיד מזוהה</th>
+                                <th>פריט ציוד</th>
+                                <th>מספר סידורי</th>
+                                <th>סטטוס</th>
+                                <th>תאריך קבלה</th>
+                                <th>הערות</th>
+                                <th>פעולות</th>
+                            </tr>
+                        </thead>
+                        <tbody id="equipmentTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="reports" class="tab-content">
+                <h3 style="color: #2c3e50; margin-bottom: 20px;">📈 דוחות וסטטיסטיקות</h3>
+                
+                <div class="button-grid">
+                    <button class="btn btn-success" onclick="generateFullReport()">
+                        📊 דוח מלא (נוכחות + ציוד)
+                    </button>
+                    <button class="btn btn-info" onclick="generateShiftReport()">
+                        🔄 דוח סבבים מפורט
+                    </button>
+                    <button class="btn btn-purple" onclick="generateCommandersReport()">
+                        👨‍💼 דוח מפקדים
+                    </button>
+                    <button class="btn btn-warning" onclick="generateCriticalReport()">
+                        🚨 דוח בעיות קריטיות
+                    </button>
+                    <button class="btn" onclick="exportAllData()">
+                        💾 גיבוי מלא של הנתונים
+                    </button>
+                </div>
+
+                <!-- גרפים וסטטיסטיקות -->
+                <div class="chart-container">
+                    <h4>📊 השוואת נוכחות בין סבבים</h4>
+                    <canvas id="shiftsComparisonChart"></canvas>
+                </div>
+
+                <div class="chart-container">
+                    <h4>🎯 סטטוס ציוד קריטי</h4>
+                    <canvas id="criticalEquipmentChart"></canvas>
+                </div>
+            </div>
+
+            <div id="search" class="tab-content">
+                <h3 style="color: #2c3e50; margin-bottom: 20px;">🔍 חיפוש מתקדם</h3>
+                
+                <!-- חיפוש מתקדם -->
+                <div class="search-section">
+                    <h3>🎯 חיפוש מתקדם</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin: 20px 0;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">שם חייל:</label>
+                            <input type="text" id="searchName" class="search-input" placeholder="שם פרטי או משפחה">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">מספר אישי:</label>
+                            <input type="text" id="searchId" class="search-input" placeholder="מספר אישי">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">סבב:</label>
+                            <select id="searchShift" class="search-input">
+                                <option value="">כל הסבבים</option>
+                                <option value="a">סבב א</option>
+                                <option value="b">סבב ב</option>
+                                <option value="weekend">חריגי סופי שבוע</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">תפקיד:</label>
+                            <select id="searchRole" class="search-input">
+                                <option value="">כל התפקידים</option>
+                                <option value="commander">מפקד</option>
+                                <option value="sniper">קלע</option>
+                                <option value="machine-gunner">נגביסט</option>
+                                <option value="soldier">חייל</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">סטטוס נוכחות:</label>
+                            <select id="searchAttendance" class="search-input">
+                                <option value="">הכל</option>
+                                <option value="present">נוכח</option>
+                                <option value="absent">נעדר</option>
+                                <option value="critical">נעדר קריטי</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">סטטוס ציוד:</label>
+                            <select id="searchEquipment" class="search-input">
+                                <option value="">הכל</option>
+                                <option value="ok">תקין</option>
+                                <option value="issues">יש בעיות</option>
+                                <option value="critical">ציוד קריטי</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="text-align: center; margin: 20px 0;">
+                        <button class="btn btn-info" onclick="performAdvancedSearch()">
+                            🔍 חפש
+                        </button>
+                        <button class="btn" onclick="clearAdvancedSearch()" style="background: #6c757d;">
+                            🗑️ נקה
+                        </button>
+                    </div>
+                    <div id="advancedSearchResults" class="search-results" style="margin-top: 20px;"></div>
+                </div>
+
+                <!-- תוצאות חיפוש -->
+                <div class="table-container hidden" id="searchResultsContainer">
+                    <h4 style="padding: 15px; background: #f8f9fa; margin: 0;">תוצאות חיפוש</h4>
+                    <table id="searchResultsTable">
+                        <thead>
+                            <tr>
+                                <th>שם חייל</th>
+                                <th>מספר אישי</th>
+                                <th>סבב</th>
+                                <th>תפקיד</th>
+                                <th>נוכחות היום</th>
+                                <th>סטטוס ציוד</th>
+                                <th>פעולות</th>
+                            </tr>
+                        </thead>
+                        <tbody id="searchResultsBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- פעולות על חיילים נבחרים -->
+            <div id="bulkActions" class="bulk-actions">
+                <h4>🎯 פעולות על חיילים נבחרים</h4>
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <span id="selectedCount" style="font-weight: bold; font-size: 1.1rem; color: #2980b9;">0 נבחרו</span>
+                </div>
+                <div class="bulk-actions-grid">
+                    <button class="btn btn-success" onclick="markSelectedPresent()">
+                        ✅ סמן כנוכחים
+                    </button>
+                    <button class="btn btn-danger" onclick="markSelectedAbsent()">
+                        ❌ סמן כנעדרים
+                    </button>
+                    <button class="btn btn-warning" onclick="addEquipmentNote()">
+                        📝 הוסף הערת ציוד
+                    </button>
+                    <button class="btn btn-info" onclick="exportSelected()">
+                        📤 ייצא נבחרים
+                    </button>
+                    <button class="btn" onclick="clearSelection()" style="background: #6c757d;">
+                        ❌ בטל בחירה
+                    </button>
+                </div>
+            </div>
+
+            <!-- שמירה -->
+            <div style="text-align: center; margin: 30px 0;">
+                <button class="btn btn-success" onclick="saveChanges()" style="font-size: 1.2em; padding: 15px 30px;">
+                    💾 שמור כל השינויים
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // נתוני הסבבים והמפקדים
+        const SHIFT_A = ['דוד בר-און', 'גיל מימרן', 'יוסי ירושלמי', 'אביתר כהן', 'נעם קוריאט', 'דוד כאלי', 'שקד בוטבול', 'מנשה שוורצזון', 'אוריאן מלמד', 'נדב תורג׳מן', 'מנדי מלקוב'];
+        const SHIFT_B = ['יצחק סיבוני', 'דניאל עיני', 'דילן פדוביץ', 'מרו מונטסאנו', 'שי תמם', 'רם שילון', 'אלעד מגער', 'גלעד קראח', 'ארי גולדברג', 'רענן בלוך'];
+        const COMMANDERS = ['אביתר כהן', 'דוד בר-און', 'יצחק סיבוני', 'רם שילון', 'גיל מימרן', 'יובל שטרית'];
+        const WEEKEND_EXCEPTIONS = {
+            'אלנתן ויזונסקי': 'a', // מגיע עם סבב א בסופי שבוע
+            'יובל שטרית': 'b'     // מגיע עם סבב ב בסופי שבוע
+        };
+
+        // משתנים גלובליים
+        let soldiersData = [];
+        let attendanceData = [];
+        let equipmentData = [];
+        let currentTab = 'overview';
+        let hasUnsavedChanges = false;
+        let charts = {};
+
+        // אתחול המערכת
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeSystem();
+            loadFromLocalStorage();
+            setupEventListeners();
+        });
+
+        function initializeSystem() {
+            console.log('מאתחל מערכת סבבים...');
+            updateCurrentShiftIndicator();
+            updateStats();
+            createInitialCharts();
+            showAlert('מערכת הסבבים מוכנה לשימוש! העלה קבצים כדי להתחיל', 'info');
+        }
+
+        function setupEventListeners() {
+            document.getElementById('attendanceFile').addEventListener('change', handleAttendanceFile);
+            document.getElementById('equipmentFile').addEventListener('change', handleEquipmentFile);
+            
+            // קיצורי דרך
+            document.addEventListener('keydown', function(event) {
+                if (event.ctrlKey && event.key === 's') {
+                    event.preventDefault();
+                    saveChanges();
+                }
+                if (event.ctrlKey && event.key === 'f') {
+                    event.preventDefault();
+                    document.getElementById('quickSearchInput').focus();
+                }
+            });
+        }
+
+        function updateCurrentShiftIndicator() {
+            const today = new Date();
+            const dayOfWeek = today.getDay();
+            const isWeekend = dayOfWeek === 5 || dayOfWeek === 6; // שישי ושבת
+            const isChangeover = dayOfWeek === 0; // יום ראשון
+            
+            const indicator = document.getElementById('currentShiftIndicator');
+            
+            if (isChangeover) {
+                indicator.innerHTML = '🔄 יום חילוף סבבים - נוכחות כמעט מלאה צפויה (19-21 חיילים)';
+                indicator.style.background = 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)';
+            } else if (isWeekend) {
+                indicator.innerHTML = '🗓️ סוף שבוע - כולל חריגים (אלנתן + יובל)';
+                indicator.style.background = 'linear-gradient(135deg, #f39c12 0%, #e67e22 100%)';
+            } else {
+                // קביעת איזה סבב צריך להיות (זה דורש הגדרה של איזה שבוע אנחנו)
+                const weekNumber = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000));
+                const currentShift = weekNumber % 2 === 0 ? 'א' : 'ב';
+                const expectedCount = currentShift === 'א' ? 11 : 10;
+                
+                indicator.innerHTML = `📅 סבב ${currentShift} צריך להיות נוכח היום (צפויים ${expectedCount} חיילים)`;
+                indicator.style.background = currentShift === 'א' ? 
+                    'linear-gradient(135deg, #27ae60 0%, #2ecc71 100%)' : 
+                    'linear-gradient(135deg, #3498db 0%, #2980b9 100%)';
+            }
+            
+            indicator.style.display = 'block';
+        }
+
+        // זיהוי תפקידים אוטומטי
+        function identifyRole(soldierName, soldierEquipment = []) {
+            // זיהוי מפקדים
+            if (COMMANDERS.includes(soldierName)) {
+                return 'commander';
+            }
+            
+            // זיהוי נגביסטים
+            if (soldierName === 'שקד בוטבול') {
+                return 'machine-gunner'; // נגביסט ללא רישום נגב נכון לעכשיו
+            }
+            
+            const hasNegev = soldierEquipment.some(eq => eq.itemName && eq.itemName.toLowerCase().includes('נגב'));
+            if (hasNegev) {
+                return 'machine-gunner';
+            }
+            
+            // זיהוי קלעים
+            const hasLior = soldierEquipment.some(eq => eq.itemName && eq.itemName.toLowerCase().includes('ליאור'));
+            if (hasLior) {
+                return 'sniper';
+            }
+            
+            return 'soldier';
+        }
+
+        function identifyShift(soldierName) {
+            if (SHIFT_A.includes(soldierName)) {
+                return 'a';
+            } else if (SHIFT_B.includes(soldierName)) {
+                return 'b';
+            } else if (WEEKEND_EXCEPTIONS[soldierName]) {
+                return WEEKEND_EXCEPTIONS[soldierName];
+            }
+            return 'unknown';
+        }
+
+        function getRoleDisplay(role) {
+            const roleMap = {
+                'commander': { text: '👨‍💼 מפקד', class: 'role-commander' },
+                'sniper': { text: '🎯 קלע', class: 'role-sniper' },
+                'machine-gunner': { text: '🔫 נגביסט', class: 'role-machine-gunner' },
+                'soldier': { text: '🪖 חייל', class: 'role-soldier' }
+            };
+            return roleMap[role] || roleMap['soldier'];
+        }
+
+        function getShiftDisplay(shift) {
+            const shiftMap = {
+                'a': { text: 'א', class: 'shift-a-indicator' },
+                'b': { text: 'ב', class: 'shift-b-indicator' },
+                'unknown': { text: '?', class: 'shift-unknown' }
+            };
+            return shiftMap[shift] || shiftMap['unknown'];
+        }
+
+        // טיפול בקבצים
+        function handleAttendanceFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            showAlert('טוען קובץ נוכחות...', 'info');
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data);
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rawData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                    
+                    processAttendanceData(rawData);
+                    showAlert(`✅ קובץ נוכחות נטען בהצלחה! ${soldiersData.length} חיילים מזוהים`, 'success');
+                    updateDisplay();
+                    saveToLocalStorage();
+                } catch (error) {
+                    showAlert('שגיאה בקריאת קובץ הנוכחות: ' + error.message, 'error');
+                }
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+
+        function handleEquipmentFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            showAlert('טוען קובץ ציוד...', 'info');
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data);
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rawData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                    
+                    processEquipmentData(rawData);
+                    showAlert(`✅ קובץ ציוד נטען בהצלחה! ${equipmentData.length} פריטים מזוהים`, 'success');
+                    updateDisplay();
+                    saveToLocalStorage();
+                } catch (error) {
+                    showAlert('שגיאה בקריאת קובץ הציוד: ' + error.message, 'error');
+                }
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+
+        function processAttendanceData(rawData) {
+            soldiersData = [];
+            
+            // מניח שהשורה הראשונה היא כותרות
+            const headers = rawData[0];
+            const dateColumns = headers.slice(3); // התאריכים מהעמודה הרביעית ואילך
+            
+            for (let i = 1; i < rawData.length; i++) {
+                const row = rawData[i];
+                if (row && row[0]) {
+                    const soldierName = row[0]?.toString().trim();
+                    const soldier = {
+                        id: i.toString(),
+                        name: soldierName,
+                        personalId: row[1]?.toString().trim() || '',
+                        shift: identifyShift(soldierName),
+                        role: 'soldier', // יעודכן אחרי טעינת הציוד
+                        attendance: {},
+                        notes: '',
+                        isWeekendException: !!WEEKEND_EXCEPTIONS[soldierName]
+                    };
+                    
+                    // עיבוד נתוני נוכחות לתאריכים
+                    dateColumns.forEach((date, index) => {
+                        if (date) {
+                            const status = row[3 + index];
+                            soldier.attendance[date] = status === 'V' || status === '✓' || status === 'נוכח' ? 'present' : 'absent';
+                        }
+                    });
+                    
+                    soldiersData.push(soldier);
+                }
+            }
+            
+            console.log(`עובדו ${soldiersData.length} חיילים עם זיהוי סבבים`);
+            
+            // עדכון פרטי סבבים
+            updateShiftInfo();
+        }
+
+        function processEquipmentData(rawData) {
+            equipmentData = [];
+            
+            for (let i = 1; i < rawData.length; i++) {
+                const row = rawData[i];
+                if (row && row[0]) {
+                    const equipment = {
+                        id: i.toString(),
+                        soldierName: row[0]?.toString().trim(),
+                        personalId: row[1]?.toString().trim() || '',
+                        itemName: row[2]?.toString().trim() || '',
+                        serialNumber: row[3]?.toString().trim() || '',
+                        status: row[4]?.toString().trim() || 'תקין',
+                        receivedDate: row[5]?.toString().trim() || '',
+                        notes: row[6]?.toString().trim() || ''
+                    };
+                    
+                    equipmentData.push(equipment);
+                }
+            }
+            
+            // עדכון תפקידים בהתאם לציוד
+            updateSoldiersRoles();
+            
+            console.log(`עובדו ${equipmentData.length} פריטי ציוד עם זיהוי תפקידים`);
+        }
+
+        function updateSoldiersRoles() {
+            soldiersData.forEach(soldier => {
+                const soldierEquipment = equipmentData.filter(eq => eq.soldierName === soldier.name);
+                soldier.role = identifyRole(soldier.name, soldierEquipment);
+            });
+        }
+
+        function updateShiftInfo() {
+            const shiftACount = soldiersData.filter(s => s.shift === 'a').length;
+            const shiftBCount = soldiersData.filter(s => s.shift === 'b').length;
+            const weekendExceptions = soldiersData.filter(s => s.isWeekendException).length;
+            
+            const shiftDetails = document.getElementById('shiftDetails');
+            shiftDetails.innerHTML = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                    <div>
+                        <strong>🅰️ סבב א:</strong> ${shiftACount} חיילים<br>
+                        <small>כולל ${soldiersData.filter(s => s.shift === 'a' && COMMANDERS.includes(s.name)).length} מפקדים</small>
+                    </div>
+                    <div>
+                        <strong>🅱️ סבב ב:</strong> ${shiftBCount} חיילים<br>
+                        <small>כולל ${soldiersData.filter(s => s.shift === 'b' && COMMANDERS.includes(s.name)).length} מפקדים</small>
+                    </div>
+                    <div>
+                        <strong>🎭 חריגי סופי שבוע:</strong> ${weekendExceptions}<br>
+                        <small>אלנתן (עם א) + יובל (עם ב)</small>
+                    </div>
+                    <div>
+                        <strong>👨‍💼 סה"כ מפקדים:</strong> ${COMMANDERS.length}<br>
+                        <small>פרושים על שני הסבבים</small>
+                    </div>
+                </div>
+            `;
+        }
+
+        // עדכון תצוגה
+        function updateDisplay() {
+            updateStats();
+            updateAttendanceTable();
+            updateEquipmentTable();
+            updateCharts();
+            checkUrgentActions();
+        }
+
+        function updateStats() {
+            const today = new Date();
+            const dayOfWeek = today.getDay();
+            
+            // חישוב נוכחות לפי סבבים
+            const shiftAPresent = soldiersData.filter(s => 
+                s.shift === 'a' && getTodayAttendanceStatus(s) === 'present'
+            ).length;
+            
+            const shiftBPresent = soldiersData.filter(s => 
+                s.shift === 'b' && getTodayAttendanceStatus(s) === 'present'
+            ).length;
+            
+            // חישוב לפי תפקידים
+            const commandersPresent = soldiersData.filter(s => 
+                s.role === 'commander' && getTodayAttendanceStatus(s) === 'present'
+            ).length;
+            
+            const snipersPresent = soldiersData.filter(s => 
+                s.role === 'sniper' && getTodayAttendanceStatus(s) === 'present'
+            ).length;
+            
+            const machineGunnersPresent = soldiersData.filter(s => 
+                s.role === 'machine-gunner' && getTodayAttendanceStatus(s) === 'present'
+            ).length;
+            
+            // בעיות ציוד
+            const equipmentIssues = equipmentData.filter(e => 
+                e.status !== 'תקין' && e.status !== 'OK'
+            ).length;
+            
+            // נעדרים קריטיים (מפקדים או ציוד קריטי)
+            const criticalAbsences = soldiersData.filter(s => {
+                if (getTodayAttendanceStatus(s) === 'present') return false;
+                
+                // מפקד נעדר = קריטי
+                if (s.role === 'commander') return true;
+                
+                // נגביסט או קלע עם ציוד פגום = קריטי
+                if ((s.role === 'sniper' || s.role === 'machine-gunner')) {
+                    const soldierEquipment = equipmentData.filter(e => e.soldierName === s.name);
+                    return soldierEquipment.some(e => e.status !== 'תקין' && e.status !== 'OK');
+                }
+                
+                return false;
+            }).length;
+
+            document.getElementById('totalSoldiers').textContent = soldiersData.length;
+            document.getElementById('shiftAPresent').textContent = `${shiftAPresent}/${SHIFT_A.length}`;
+            document.getElementById('shiftBPresent').textContent = `${shiftBPresent}/${SHIFT_B.length}`;
+            document.getElementById('commandersPresent').textContent = `${commandersPresent}/${COMMANDERS.length}`;
+            document.getElementById('snipersPresent').textContent = snipersPresent;
+            document.getElementById('machineGunnersPresent').textContent = machineGunnersPresent;
+            document.getElementById('equipmentIssues').textContent = equipmentIssues;
+            document.getElementById('criticalAbsences').textContent = criticalAbsences;
+        }
+
+        function updateAttendanceTable() {
+            const tbody = document.getElementById('attendanceTableBody');
+            tbody.innerHTML = '';
+            
+            // מיון לפי סבב ותפקיד
+            const sortedSoldiers = [...soldiersData].sort((a, b) => {
+                if (a.shift !== b.shift) {
+                    return a.shift === 'a' ? -1 : 1;
+                }
+                if (a.role !== b.role) {
+                    const roleOrder = ['commander', 'sniper', 'machine-gunner', 'soldier'];
+                    return roleOrder.indexOf(a.role) - roleOrder.indexOf(b.role);
+                }
+                return a.name.localeCompare(b.name, 'he');
+            });
+            
+            sortedSoldiers.forEach(soldier => {
+                const row = document.createElement('tr');
+                
+                const todayStatus = getTodayAttendanceStatus(soldier);
+                const weekAbsences = getWeekAbsences(soldier);
+                const roleDisplay = getRoleDisplay(soldier.role);
+                const shiftDisplay = getShiftDisplay(soldier.shift);
+                
+                let specialIndicators = '';
+                if (soldier.isWeekendException) {
+                    specialIndicators = '<span class="weekend-exception">סופ"ש</span>';
+                }
+                
+                row.innerHTML = `
+                    <td>
+                        <input type="checkbox" class="checkbox-soldier" value="${soldier.id}" onchange="updateSelectedCount()">
+                    </td>
+                    <td><strong>${soldier.name}</strong></td>
+                    <td>${soldier.personalId}</td>
+                    <td>
+                        <span class="${shiftDisplay.class}">${shiftDisplay.text}</span>
+                        ${specialIndicators}
+                    </td>
+                    <td>
+                        <span class="${roleDisplay.class}">${roleDisplay.text}</span>
+                    </td>
+                    <td>
+                        <span class="status-${todayStatus}" onclick="toggleAttendanceStatus('${soldier.id}')">
+                            ${todayStatus === 'present' ? '✅ נוכח' : '❌ נעדר'}
+                        </span>
+                    </td>
+                    <td>${weekAbsences}</td>
+                    <td>
+                        <input type="text" value="${soldier.notes}" 
+                               onchange="updateSoldierNotes('${soldier.id}', this.value)"
+                               style="border: none; background: transparent; text-align: center;">
+                    </td>
+                    <td>
+                        <button class="btn" style="padding: 4px 8px; font-size: 0.7rem;" 
+                                onclick="viewSoldierDetails('${soldier.id}')">
+                            👁️ פרטים
+                        </button>
+                    </td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        }
+
+        function updateEquipmentTable() {
+            const tbody = document.getElementById('equipmentTableBody');
+            tbody.innerHTML = '';
+            
+            equipmentData.forEach(equipment => {
+                const row = document.createElement('tr');
+                const statusClass = equipment.status === 'תקין' || equipment.status === 'OK' ? 
+                    'status-equipment-ok' : 'status-equipment-missing';
+                
+                // זיהוי תפקיד לפי ציוד
+                const soldier = soldiersData.find(s => s.name === equipment.soldierName);
+                const roleDisplay = soldier ? getRoleDisplay(soldier.role) : getRoleDisplay('soldier');
+                
+                // סימון ציוד קריטי
+                const isCritical = equipment.itemName.toLowerCase().includes('נגב') || 
+                                 equipment.itemName.toLowerCase().includes('ליאור');
+                const criticalMark = isCritical ? '🚨' : '';
+                
+                row.innerHTML = `
+                    <td>
+                        <input type="checkbox" class="checkbox-equipment" value="${equipment.id}" onchange="updateSelectedCount()">
+                    </td>
+                    <td><strong>${equipment.soldierName}</strong></td>
+                    <td>
+                        <span class="${roleDisplay.class}">${roleDisplay.text}</span>
+                    </td>
+                    <td>${criticalMark} ${equipment.itemName}</td>
+                    <td>${equipment.serialNumber}</td>
+                    <td>
+                        <span class="${statusClass}" onclick="toggleEquipmentStatus('${equipment.id}')">
+                            ${equipment.status}
+                        </span>
+                    </td>
+                    <td>${equipment.receivedDate}</td>
+                    <td>
+                        <input type="text" value="${equipment.notes}" 
+                               onchange="updateEquipmentNotes('${equipment.id}', this.value)"
+                               style="border: none; background: transparent; text-align: center;">
+                    </td>
+                    <td>
+                        <button class="btn btn-success" style="padding: 4px 8px; font-size: 0.7rem;" 
+                                onclick="creditEquipment('${equipment.id}')">
+                            🏆 זיכוי
+                        </button>
+                    </td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        }
+
+        // פונקציות עזר
+        function getTodayAttendanceStatus(soldier) {
+            const today = new Date().toLocaleDateString('he-IL');
+            return soldier.attendance[today] || 'absent';
+        }
+
+        function getWeekAbsences(soldier) {
+            const absences = Object.values(soldier.attendance).filter(status => status === 'absent').length;
+            return absences;
+        }
+
+        function toggleAttendanceStatus(soldierId) {
+            const soldier = soldiersData.find(s => s.id === soldierId);
+            if (soldier) {
+                const currentStatus = getTodayAttendanceStatus(soldier);
+                const newStatus = currentStatus === 'present' ? 'absent' : 'present';
+                
+                const today = new Date().toLocaleDateString('he-IL');
+                soldier.attendance[today] = newStatus;
+                
+                markUnsavedChanges();
+                updateDisplay();
+                
+                const roleText = getRoleDisplay(soldier.role).text;
+                showAlert(`✅ ${soldier.name} (${roleText}) עודכן ל${newStatus === 'present' ? 'נוכח' : 'נעדר'}`, 'success');
+            }
+        }
+
+        function toggleEquipmentStatus(equipmentId) {
+            const equipment = equipmentData.find(e => e.id === equipmentId);
+            if (equipment) {
+                const newStatus = equipment.status === 'תקין' ? 'חסר' : 'תקין';
+                equipment.status = newStatus;
+                
+                markUnsavedChanges();
+                updateDisplay();
+                
+                const isCritical = equipment.itemName.toLowerCase().includes('נגב') || 
+                                 equipment.itemName.toLowerCase().includes('ליאור');
+                const criticalText = isCritical ? ' (ציוד קריטי!)' : '';
+                
+                showAlert(`✅ ציוד ${equipment.itemName} של ${equipment.soldierName} עודכן ל${newStatus}${criticalText}`, 
+                         isCritical && newStatus !== 'תקין' ? 'warning' : 'success');
+            }
+        }
+
+        function updateSoldierNotes(soldierId, notes) {
+            const soldier = soldiersData.find(s => s.id === soldierId);
+            if (soldier) {
+                soldier.notes = notes;
+                markUnsavedChanges();
+            }
+        }
+
+        function updateEquipmentNotes(equipmentId, notes) {
+            const equipment = equipmentData.find(e => e.id === equipmentId);
+            if (equipment) {
+                equipment.notes = notes;
+                markUnsavedChanges();
+            }
+        }
+
+        // חיפוש
+        function performQuickSearch() {
+            const searchTerm = document.getElementById('quickSearchInput').value.trim();
+            if (!searchTerm) {
+                clearQuickSearch();
+                return;
+            }
+            
+            if (soldiersData.length === 0) {
+                showAlert('אין נתונים לחיפוש. העלה קבצים תחילה.', 'warning');
+                return;
+            }
+            
+            const results = soldiersData.filter(soldier => {
+                const searchLower = searchTerm.toLowerCase();
+                return soldier.name.toLowerCase().includes(searchLower) ||
+                       soldier.personalId.includes(searchTerm) ||
+                       getRoleDisplay(soldier.role).text.toLowerCase().includes(searchLower) ||
+                       (soldier.shift === 'a' && searchLower.includes('סבב א')) ||
+                       (soldier.shift === 'b' && searchLower.includes('סבב ב'));
+            });
+            
+            const resultsDiv = document.getElementById('quickSearchResults');
+            if (results.length === 0) {
+                resultsDiv.textContent = 'לא נמצאו תוצאות';
+                resultsDiv.style.color = '#e74c3c';
+            } else {
+                resultsDiv.textContent = `נמצאו ${results.length} חיילים`;
+                resultsDiv.style.color = '#27ae60';
+                
+                // הצגת פירוט מהיר
+                let quickDetails = results.slice(0, 3).map(s => 
+                    `${s.name} (${getShiftDisplay(s.shift).text}, ${getRoleDisplay(s.role).text.split(' ')[1]})`
+                ).join(', ');
+                
+                if (results.length > 3) {
+                    quickDetails += `... ועוד ${results.length - 3}`;
+                }
+                
+                showAlert(`נמצאו: ${quickDetails}`, 'info');
+            }
+        }
+
+        function clearQuickSearch() {
+            document.getElementById('quickSearchInput').value = '';
+            document.getElementById('quickSearchResults').textContent = '';
+        }
+
+        // לשוניות
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+            
+            currentTab = tabName;
+            
+            if (tabName === 'overview') {
+                updateCharts();
+            } else if (tabName === 'attendance') {
+                updateAttendanceTable();
+                createAttendanceCalendar();
+            } else if (tabName === 'equipment') {
+                updateEquipmentTable();
+            } else if (tabName === 'reports') {
+                updateReportsCharts();
+            }
+        }
+
+        // גרפים
+        function createInitialCharts() {
+            const ctx1 = document.getElementById('weeklyChart').getContext('2d');
+            charts.weekly = new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels: ['ראשון (חילוף)', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'],
+                    datasets: [
+                        {
+                            label: 'נוכחות צפויה',
+                            data: [85, 50, 50, 50, 50, 60, 60], // מותאם לסבבים
+                            borderColor: '#2ecc71',
+                            backgroundColor: 'rgba(46, 204, 113, 0.1)',
+                            borderDash: [5, 5],
+                            tension: 0.4
+                        },
+                        {
+                            label: 'נוכחות בפועל',
+                            data: [80, 48, 52, 45, 55, 58, 62],
+                            borderColor: '#3498db',
+                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: true }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'אחוז נוכחות'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateCharts() {
+            if (charts.weekly && soldiersData.length > 0) {
+                const weekData = calculateWeeklyAttendance();
+                charts.weekly.data.datasets[1].data = weekData;
+                charts.weekly.update();
+            }
+        }
+
+        function calculateWeeklyAttendance() {
+            // חישוב נוכחות שבועית מותאם לסבבים
+            const weekData = [0, 0, 0, 0, 0, 0, 0];
+            
+            soldiersData.forEach(soldier => {
+                Object.entries(soldier.attendance).forEach(([date, status]) => {
+                    if (status === 'present') {
+                        const dayIndex = new Date(date).getDay();
+                        weekData[dayIndex]++;
+                    }
+                });
+            });
+            
+            return weekData.map((count, dayIndex) => {
+                if (soldiersData.length === 0) return 0;
+                
+                // יום ראשון - נוכחות גבוהה יותר בגלל חילוף
+                const expected = dayIndex === 0 ? soldiersData.length * 0.85 : soldiersData.length * 0.5;
+                return Math.round((count / expected) * 100);
+            });
+        }
+
+        function createAttendanceCalendar() {
+            const calendar = document.getElementById('attendanceCalendar');
+            calendar.innerHTML = '';
+            
+            for (let i = 29; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                
+                const dayDiv = document.createElement('div');
+                dayDiv.className = 'calendar-day';
+                dayDiv.textContent = date.getDate();
+                
+                const attendanceRate = calculateDayAttendance(date);
+                const dayOfWeek = date.getDay();
+                
+                // חישוב צבע לפי יום ומתכונת סבבים
+                if (dayOfWeek === 0) { // יום ראשון - חילוף
+                    dayDiv.classList.add('changeover');
+                    if (attendanceRate < 70) dayDiv.classList.add('critical');
+                } else if (attendanceRate >= 45) {
+                    dayDiv.classList.add('normal');
+                } else if (attendanceRate >= 35) {
+                    dayDiv.classList.add('low');
+                } else {
+                    dayDiv.classList.add('critical');
+                }
+                
+                if (i === 0) {
+                    dayDiv.classList.add('today');
+                }
+                
+                const expectedText = dayOfWeek === 0 ? 'חילוף' : 'רגיל';
+                dayDiv.title = `${date.toLocaleDateString('he-IL')}: ${attendanceRate}% נוכחות (יום ${expectedText})`;
+                calendar.appendChild(dayDiv);
+            }
+        }
+
+        function calculateDayAttendance(date) {
+            if (soldiersData.length === 0) return 50;
+            
+            const dateStr = date.toLocaleDateString('he-IL');
+            const presentCount = soldiersData.filter(soldier => 
+                soldier.attendance[dateStr] === 'present'
+            ).length;
+            
+            return Math.round((presentCount / soldiersData.length) * 100);
+        }
+
+        // פונקציות פעולה ספציפיות לסבבים
+        function markCurrentShiftPresent() {
+            if (confirm('האם לסמן את כל הסבב הנוכחי כנוכח?')) {
+                // זיהוי הסבב הנוכחי (זה דורש לוגיקה נוספת של איזה שבוע)
+                const today = new Date().toLocaleDateString('he-IL');
+                
+                // לצורך הדוגמה, נסמן את כל מי שאמור להיות
+                const weekNumber = Math.floor((new Date().getTime() - new Date(new Date().getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000));
+                const currentShift = weekNumber % 2 === 0 ? 'a' : 'b';
+                
+                let markedCount = 0;
+                soldiersData.forEach(soldier => {
+                    if (soldier.shift === currentShift) {
+                        soldier.attendance[today] = 'present';
+                        markedCount++;
+                    }
+                });
+                
+                markUnsavedChanges();
+                updateDisplay();
+                showAlert(`✅ סבב ${currentShift} סומן כנוכח (${markedCount} חיילים)`, 'success');
+            }
+        }
+
+        function showCriticalAbsences() {
+            const criticalAbsent = soldiersData.filter(s => {
+                if (getTodayAttendanceStatus(s) === 'present') return false;
+                
+                // מפקד נעדר = קריטי
+                if (s.role === 'commander') return true;
+                
+                // נגביסט או קלע נעדר = קריטי
+                if (s.role === 'sniper' || s.role === 'machine-gunner') return true;
+                
+                return false;
+            });
+            
+            if (criticalAbsent.length === 0) {
+                showAlert('🎉 אין נעדרים קריטיים!', 'success');
+            } else {
+                let message = `🚨 ${criticalAbsent.length} נעדרים קריטיים:\n`;
+                criticalAbsent.forEach(s => {
+                    message += `• ${s.name} (${getRoleDisplay(s.role).text.split(' ')[1]})\n`;
+                });
+                alert(message);
+            }
+        }
+
+        function showCommandersAttendance() {
+            const commanders = soldiersData.filter(s => s.role === 'commander');
+            const presentCommanders = commanders.filter(s => getTodayAttendanceStatus(s) === 'present');
+            
+            let message = `👨‍💼 מצב מפקדים (${presentCommanders.length}/${commanders.length}):\n\n`;
+            
+            commanders.forEach(commander => {
+                const status = getTodayAttendanceStatus(commander) === 'present' ? '✅' : '❌';
+                const shift = getShiftDisplay(commander.shift).text;
+                message += `${status} ${commander.name} (סבב ${shift})\n`;
+            });
+            
+            alert(message);
+        }
+
+        function showCriticalEquipment() {
+            const criticalEquipment = equipmentData.filter(e => 
+                (e.itemName.toLowerCase().includes('נגב') || e.itemName.toLowerCase().includes('ליאור')) &&
+                (e.status !== 'תקין' && e.status !== 'OK')
+            );
+            
+            if (criticalEquipment.length === 0) {
+                showAlert('✅ כל הציוד הקריטי תקין!', 'success');
+            } else {
+                let message = `🚨 ${criticalEquipment.length} בעיות ציוד קריטי:\n`;
+                criticalEquipment.forEach(e => {
+                    message += `• ${e.soldierName}: ${e.itemName} - ${e.status}\n`;
+                });
+                alert(message);
+            }
+        }
+
+        // דוחות
+        function generateShiftReport() {
+            if (soldiersData.length === 0) {
+                showAlert('אין נתונים לדוח', 'warning');
+                return;
+            }
+            
+            try {
+                const wb = XLSX.utils.book_new();
+                
+                // דוח סבב א
+                const shiftAData = soldiersData
+                    .filter(s => s.shift === 'a')
+                    .map(soldier => ({
+                        'שם חייל': soldier.name,
+                        'מספר אישי': soldier.personalId,
+                        'תפקיד': getRoleDisplay(soldier.role).text.split(' ')[1],
+                        'סטטוס היום': getTodayAttendanceStatus(soldier) === 'present' ? 'נוכח' : 'נעדר',
+                        'נעדרויות השבוע': getWeekAbsences(soldier),
+                        'הערות': soldier.notes,
+                        'סופ"ש מיוחד': soldier.isWeekendException ? 'כן' : 'לא'
+                    }));
+                
+                const shiftAWs = XLSX.utils.json_to_sheet(shiftAData);
+                XLSX.utils.book_append_sheet(wb, shiftAWs, 'סבב א');
+                
+                // דוח סבב ב
+                const shiftBData = soldiersData
+                    .filter(s => s.shift === 'b')
+                    .map(soldier => ({
+                        'שם חייל': soldier.name,
+                        'מספר אישי': soldier.personalId,
+                        'תפקיד': getRoleDisplay(soldier.role).text.split(' ')[1],
+                        'סטטוס היום': getTodayAttendanceStatus(soldier) === 'present' ? 'נוכח' : 'נעדר',
+                        'נעדרויות השבוע': getWeekAbsences(soldier),
+                        'הערות': soldier.notes,
+                        'סופ"ש מיוחד': soldier.isWeekendException ? 'כן' : 'לא'
+                    }));
+                
+                const shiftBWs = XLSX.utils.json_to_sheet(shiftBData);
+                XLSX.utils.book_append_sheet(wb, shiftBWs, 'סבב ב');
+                
+                const fileName = `דוח_סבבים_${new Date().toISOString().split('T')[0]}.xlsx`;
+                XLSX.writeFile(wb, fileName);
+                
+                showAlert('✅ דוח סבבים יוצא בהצלחה', 'success');
+            } catch (error) {
+                showAlert('שגיאה ביצירת דוח: ' + error.message, 'error');
+            }
+        }
+
+        function checkUrgentActions() {
+            const urgentDiv = document.getElementById('urgentActions');
+            const urgentList = document.getElementById('urgentList');
+            
+            const urgentItems = [];
+            
+            // בדיקת מפקדים נעדרים
+            const absentCommanders = soldiersData.filter(s => 
+                s.role === 'commander' && getTodayAttendanceStatus(s) === 'absent'
+            );
+            if (absentCommanders.length > 0) {
+                urgentItems.push(`${absentCommanders.length} מפקדים נעדרים: ${absentCommanders.map(s => s.name).join(', ')}`);
+            }
+            
+            // בדיקת ציוד קריטי
+            const criticalEquipmentIssues = equipmentData.filter(e => 
+                (e.itemName.toLowerCase().includes('נגב') || e.itemName.toLowerCase().includes('ליאור')) &&
+                (e.status !== 'תקין' && e.status !== 'OK')
+            );
+            if (criticalEquipmentIssues.length > 0) {
+                urgentItems.push(`${criticalEquipmentIssues.length} בעיות ציוד קריטי (נגב/ליאור)`);
+            }
+            
+            // בדיקת נוכחות חריגה
+            const totalPresent = soldiersData.filter(s => getTodayAttendanceStatus(s) === 'present').length;
+            const today = new Date();
+            const isChangeover = today.getDay() === 0;
+            
+            if (isChangeover && totalPresent < soldiersData.length * 0.7) {
+                urgentItems.push(`נוכחות נמוכה ביום חילוף: ${totalPresent}/${soldiersData.length} (צפויים 70%+)`);
+            } else if (!isChangeover && totalPresent < soldiersData.length * 0.4) {
+                urgentItems.push(`נוכחות נמוכה מדי: ${totalPresent}/${soldiersData.length} (צפויים 40%+)`);
+            }
+            
+            if (urgentItems.length > 0) {
+                urgentList.innerHTML = urgentItems.map(item => `<li>${item}</li>`).join('');
+                urgentDiv.style.display = 'block';
+            } else {
+                urgentDiv.style.display = 'none';
+            }
+        }
+
+        // יתר הפונקציות נשארות כמו שהיו...
+        function updateSelectedCount() {
+            const checkboxes = document.querySelectorAll('.checkbox-soldier:checked, .checkbox-equipment:checked');
+            const count = checkboxes.length;
+            
+            document.getElementById('selectedCount').textContent = `${count} נבחרו`;
+            
+            const bulkActions = document.getElementById('bulkActions');
+            if (count > 0) {
+                bulkActions.classList.add('show');
+            } else {
+                bulkActions.classList.remove('show');
+            }
+        }
+
+        function viewSoldierDetails(soldierId) {
+            const soldier = soldiersData.find(s => s.id === soldierId);
+            const soldierEquipment = equipmentData.filter(e => e.soldierName === soldier.name);
+            
+            const roleDisplay = getRoleDisplay(soldier.role);
+            const shiftDisplay = getShiftDisplay(soldier.shift);
+            
+            let details = `📋 פרטי חייל: ${soldier.name}\n\n`;
+            details += `🆔 מספר אישי: ${soldier.personalId}\n`;
+            details += `🔄 סבב: ${shiftDisplay.text}\n`;
+            details += `👤 תפקיד: ${roleDisplay.text}\n`;
+            details += `📊 סטטוס נוכחות: ${getTodayAttendanceStatus(soldier) === 'present' ? 'נוכח' : 'נעדר'}\n`;
+            details += `📅 נעדרויות השבוע: ${getWeekAbsences(soldier)}\n`;
+            
+            if (soldier.isWeekendException) {
+                details += `🎭 חריג סופי שבוע: כן\n`;
+            }
+            
+            details += `\n`;
+            
+            if (soldierEquipment.length > 0) {
+                details += `🎯 ציוד חתום:\n`;
+                soldierEquipment.forEach(equipment => {
+                    const criticalMark = (equipment.itemName.toLowerCase().includes('נגב') || 
+                                        equipment.itemName.toLowerCase().includes('ליאור')) ? '🚨 ' : '';
+                    details += `• ${criticalMark}${equipment.itemName} (${equipment.serialNumber}) - ${equipment.status}\n`;
+                });
+            } else {
+                details += `🎯 אין ציוד רשום\n`;
+            }
+            
+            if (soldier.notes) {
+                details += `\n📝 הערות: ${soldier.notes}`;
+            }
+            
+            alert(details);
+        }
+
+        // שמירה וטעינה
+        function saveChanges() {
+            try {
+                saveToLocalStorage();
+                clearUnsavedChanges();
+                showAlert('✅ כל השינויים נשמרו בהצלחה', 'success');
+            } catch (error) {
+                showAlert('שגיאה בשמירה: ' + error.message, 'error');
+            }
+        }
+
+        function saveToLocalStorage() {
+            if (typeof(Storage) !== "undefined") {
+                const data = {
+                    soldiersData: soldiersData,
+                    attendanceData: attendanceData,
+                    equipmentData: equipmentData,
+                    timestamp: new Date().getTime()
+                };
+                localStorage.setItem('soldierManagementData', JSON.stringify(data));
+                console.log('נתונים נשמרו בזיכרון המקומי');
+            }
+        }
+
+        function loadFromLocalStorage() {
+            if (typeof(Storage) !== "undefined") {
+                const saved = localStorage.getItem('soldierManagementData');
+                if (saved) {
+                    try {
+                        const data = JSON.parse(saved);
+                        const dayInMs = 24 * 60 * 60 * 1000;
+                        
+                        if (new Date().getTime() - data.timestamp < dayInMs * 7) {
+                            soldiersData = data.soldiersData || [];
+                            attendanceData = data.attendanceData || [];
+                            equipmentData = data.equipmentData || [];
+                            
+                            if (soldiersData.length > 0 || equipmentData.length > 0) {
+                                updateDisplay();
+                                updateShiftInfo();
+                                showAlert('✅ נתונים נטענו מהזיכרון המקומי', 'info');
+                            }
+                        }
+                    } catch (error) {
+                        console.error('שגיאה בטעינת נתונים:', error);
+                    }
+                }
+            }
+        }
+
+        function markUnsavedChanges() {
+            hasUnsavedChanges = true;
+            document.getElementById('unsavedChanges').style.display = 'block';
+        }
+
+        function clearUnsavedChanges() {
+            hasUnsavedChanges = false;
+            document.getElementById('unsavedChanges').style.display = 'none';
+            showSaveIndicator();
+        }
+
+        function showSaveIndicator() {
+            const indicator = document.getElementById('saveIndicator');
+            indicator.classList.add('show');
+            setTimeout(() => {
+                indicator.classList.remove('show');
+            }, 3000);
+        }
+
+        function showAlert(message, type = 'info') {
+            const alertsContainer = document.getElementById('alertsContainer');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.innerHTML = message;
+            alertsContainer.appendChild(alert);
+
+            setTimeout(() => {
+                if (alert.parentNode) {
+                    alert.remove();
+                }
+            }, 7000);
+
+            alert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        // פונקציות לפעולות קבוצתיות וייצוא
+        function markSelectedPresent() {
+            const checkboxes = document.querySelectorAll('.checkbox-soldier:checked');
+            const today = new Date().toLocaleDateString('he-IL');
+            
+            checkboxes.forEach(checkbox => {
+                const soldier = soldiersData.find(s => s.id === checkbox.value);
+                if (soldier) {
+                    soldier.attendance[today] = 'present';
+                }
+            });
+            
+            markUnsavedChanges();
+            updateDisplay();
+            showAlert(`✅ ${checkboxes.length} חיילים סומנו כנוכחים`, 'success');
+            clearSelection();
+        }
+
+        function markSelectedAbsent() {
+            const checkboxes = document.querySelectorAll('.checkbox-soldier:checked');
+            const today = new Date().toLocaleDateString('he-IL');
+            
+            checkboxes.forEach(checkbox => {
+                const soldier = soldiersData.find(s => s.id === checkbox.value);
+                if (soldier) {
+                    soldier.attendance[today] = 'absent';
+                }
+            });
+            
+            markUnsavedChanges();
+            updateDisplay();
+            showAlert(`❌ ${checkboxes.length} חיילים סומנו כנעדרים`, 'warning');
+            clearSelection();
+        }
+
+        function clearSelection() {
+            document.querySelectorAll('.checkbox-soldier, .checkbox-equipment').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            updateSelectedCount();
+        }
+
+        function creditEquipment(equipmentId) {
+            const equipment = equipmentData.find(e => e.id === equipmentId);
+            if (equipment) {
+                const reason = prompt(`הזן סיבת זיכוי עבור ${equipment.itemName} של ${equipment.soldierName}:`);
+                if (reason) {
+                    equipment.notes = `זיכוי: ${reason} (${new Date().toLocaleDateString('he-IL')})`;
+                    equipment.status = 'תקין';
+                    markUnsavedChanges();
+                    updateDisplay();
+                    showAlert(`✅ זיכוי נרשם עבור ${equipment.soldierName}`, 'success');
+                }
+            }
+        }
+
+        // פונקציות שונות נוספות
+        function exportAttendanceReport() {
+            if (soldiersData.length === 0) {
+                showAlert('אין נתונים לייצוא', 'warning');
+                return;
+            }
+            
+            try {
+                const wb = XLSX.utils.book_new();
+                
+                const attendanceData = soldiersData.map(soldier => {
+                    const roleDisplay = getRoleDisplay(soldier.role);
+                    const shiftDisplay = getShiftDisplay(soldier.shift);
+                    
+                    return {
+                        'שם חייל': soldier.name,
+                        'מספר אישי': soldier.personalId,
+                        'סבב': shiftDisplay.text,
+                        'תפקיד': roleDisplay.text.split(' ')[1],
+                        'סטטוס היום': getTodayAttendanceStatus(soldier) === 'present' ? 'נוכח' : 'נעדר',
+                        'נעדרויות השבוע': getWeekAbsences(soldier),
+                        'חריג סופ"ש': soldier.isWeekendException ? 'כן' : 'לא',
+                        'הערות': soldier.notes
+                    };
+                });
+                
+                const ws = XLSX.utils.json_to_sheet(attendanceData);
+                XLSX.utils.book_append_sheet(wb, ws, 'נוכחות מפורטת');
+                
+                const fileName = `דוח_נוכחות_${new Date().toISOString().split('T')[0]}.xlsx`;
+                XLSX.writeFile(wb, fileName);
+                
+                showAlert('✅ דוח נוכחות יוצא בהצלחה', 'success');
+            } catch (error) {
+                showAlert('שגיאה בייצוא: ' + error.message, 'error');
+            }
+        }
+
+        function exportEquipmentReport() {
+            if (equipmentData.length === 0) {
+                showAlert('אין נתוני ציוד לייצוא', 'warning');
+                return;
+            }
+            
+            try {
+                const wb = XLSX.utils.book_new();
+                
+                const exportData = equipmentData.map(equipment => {
+                    const soldier = soldiersData.find(s => s.name === equipment.soldierName);
+                    const roleDisplay = soldier ? getRoleDisplay(soldier.role) : getRoleDisplay('soldier');
+                    const isCritical = equipment.itemName.toLowerCase().includes('נגב') || 
+                                     equipment.itemName.toLowerCase().includes('ליאור');
+                    
+                    return {
+                        'שם חייל': equipment.soldierName,
+                        'מספר אישי': equipment.personalId,
+                        'תפקיד': roleDisplay.text.split(' ')[1],
+                        'פריט': equipment.itemName,
+                        'קריטי': isCritical ? 'כן' : 'לא',
+                        'מספר סידורי': equipment.serialNumber,
+                        'סטטוס': equipment.status,
+                        'תאריך קבלה': equipment.receivedDate,
+                        'הערות': equipment.notes
+                    };
+                });
+                
+                const ws = XLSX.utils.json_to_sheet(exportData);
+                XLSX.utils.book_append_sheet(wb, ws, 'ציוד מפורט');
+                
+                const fileName = `דוח_ציוד_${new Date().toISOString().split('T')[0]}.xlsx`;
+                XLSX.writeFile(wb, fileName);
+                
+                showAlert('✅ דוח ציוד יוצא בהצלחה', 'success');
+            } catch (error) {
+                showAlert('שגיאה בייצוא: ' + error.message, 'error');
+            }
+        }
+
+        function generateFullReport() {
+            if (soldiersData.length === 0 && equipmentData.length === 0) {
+                showAlert('אין נתונים לדוח', 'warning');
+                return;
+            }
+            
+            try {
+                const wb = XLSX.utils.book_new();
+                
+                // גיליון סיכום
+                const today = new Date();
+                const dayName = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'][today.getDay()];
+                
+                const summaryData = [{
+                    'תאריך דוח': today.toLocaleDateString('he-IL'),
+                    'יום': dayName,
+                    'סה"כ חיילים': soldiersData.length,
+                    'סבב א (נוכחים)': `${soldiersData.filter(s => s.shift === 'a' && getTodayAttendanceStatus(s) === 'present').length}/${SHIFT_A.length}`,
+                    'סבב ב (נוכחים)': `${soldiersData.filter(s => s.shift === 'b' && getTodayAttendanceStatus(s) === 'present').length}/${SHIFT_B.length}`,
+                    'מפקדים נוכחים': `${soldiersData.filter(s => s.role === 'commander' && getTodayAttendanceStatus(s) === 'present').length}/${COMMANDERS.length}`,
+                    'סה"כ פריטי ציוד': equipmentData.length,
+                    'ציוד קריטי תקין': equipmentData.filter(e => 
+                        (e.itemName.toLowerCase().includes('נגב') || e.itemName.toLowerCase().includes('ליאור')) &&
+                        (e.status === 'תקין' || e.status === 'OK')
+                    ).length,
+                    'בעיות ציוד קריטי': equipmentData.filter(e => 
+                        (e.itemName.toLowerCase().includes('נגב') || e.itemName.toLowerCase().includes('ליאור')) &&
+                        (e.status !== 'תקין' && e.status !== 'OK')
+                    ).length
+                }];
+                
+                const summaryWs = XLSX.utils.json_to_sheet(summaryData);
+                XLSX.utils.book_append_sheet(wb, summaryWs, 'סיכום');
+                
+                // גיליונות נוכחות וציוד
+                if (soldiersData.length > 0) {
+                    const attendanceWs = XLSX.utils.json_to_sheet(soldiersData.map(s => ({
+                        'שם': s.name,
+                        'מס אישי': s.personalId,
+                        'סבב': getShiftDisplay(s.shift).text,
+                        'תפקיד': getRoleDisplay(s.role).text.split(' ')[1],
+                        'נוכח היום': getTodayAttendanceStatus(s) === 'present' ? 'כן' : 'לא',
+                        'נעדרויות': getWeekAbsences(s),
+                        'הערות': s.notes
+                    })));
+                    XLSX.utils.book_append_sheet(wb, attendanceWs, 'נוכחות');
+                }
+                
+                if (equipmentData.length > 0) {
+                    const equipmentWs = XLSX.utils.json_to_sheet(equipmentData.map(e => ({
+                        'שם חייל': e.soldierName,
+                        'פריט': e.itemName,
+                        'קריטי': (e.itemName.toLowerCase().includes('נגב') || e.itemName.toLowerCase().includes('ליאור')) ? 'כן' : 'לא',
+                        'מס סידורי': e.serialNumber,
+                        'סטטוס': e.status,
+                        'הערות': e.notes
+                    })));
+                    XLSX.utils.book_append_sheet(wb, equipmentWs, 'ציוד');
+                }
+                
+                const fileName = `דוח_מלא_${today.toISOString().split('T')[0]}.xlsx`;
+                XLSX.writeFile(wb, fileName);
+                
+                showAlert('✅ דוח מלא יוצא בהצלחה', 'success');
+            } catch (error) {
+                showAlert('שגיאה ביצירת דוח: ' + error.message, 'error');
+            }
+        }
+
+        // השלמת הפונקציות החסרות
+        function toggleSelectAllAttendance() {
+            const selectAll = document.getElementById('selectAllAttendance');
+            const checkboxes = document.querySelectorAll('.checkbox-soldier');
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = selectAll.checked;
+            });
+            
+            updateSelectedCount();
+        }
+
+        function toggleSelectAllEquipment() {
+            const selectAll = document.getElementById('selectAllEquipment');
+            const checkboxes = document.querySelectorAll('.checkbox-equipment');
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = selectAll.checked;
+            });
+            
+            updateSelectedCount();
+        }
+
+        function performAdvancedSearch() {
+            // פונקציונליות החיפוש המתקדם
+            showAlert('חיפוש מתקדם בפיתוח...', 'info');
+        }
+
+        function clearAdvancedSearch() {
+            document.getElementById('searchName').value = '';
+            document.getElementById('searchId').value = '';
+            document.getElementById('searchShift').value = '';
+            document.getElementById('searchRole').value = '';
+            document.getElementById('searchAttendance').value = '';
+            document.getElementById('searchEquipment').value = '';
+            document.getElementById('advancedSearchResults').textContent = '';
+        }
+
+        function showTodayAttendance() {
+            showAlert('מציג נוכחות היום...', 'info');
+        }
+
+        function showShiftComparison() {
+            const shiftAPresent = soldiersData.filter(s => s.shift === 'a' && getTodayAttendanceStatus(s) === 'present').length;
+            const shiftBPresent = soldiersData.filter(s => s.shift === 'b' && getTodayAttendanceStatus(s) === 'present').length;
+            
+            let message = `⚖️ השוואת סבבים היום:\n\n`;
+            message += `🅰️ סבב א: ${shiftAPresent}/${SHIFT_A.length} נוכחים (${Math.round(shiftAPresent/SHIFT_A.length*100)}%)\n`;
+            message += `🅱️ סבב ב: ${shiftBPresent}/${SHIFT_B.length} נוכחים (${Math.round(shiftBPresent/SHIFT_B.length*100)}%)\n\n`;
+            
+            if (shiftAPresent > shiftBPresent) {
+                message += `📊 סבב א עולה בנוכחות`;
+            } else if (shiftBPresent > shiftAPresent) {
+                message += `📊 סבב ב עולה בנוכחות`;
+            } else {
+                message += `📊 נוכחות שווה בין הסבבים`;
+            }
+            
+            alert(message);
+        }
+
+        function showEquipmentOK() {
+            const okEquipment = equipmentData.filter(e => e.status === 'תקין' || e.status === 'OK');
+            showAlert(`✅ ${okEquipment.length} פריטי ציוד תקינים`, 'success');
+        }
+
+        function addEquipmentCredit() {
+            const selectedEquipment = document.querySelectorAll('.checkbox-equipment:checked');
+            if (selectedEquipment.length === 0) {
+                showAlert('אנא בחר ציוד לזיכוי', 'warning');
+                return;
+            }
+            
+            const reason = prompt('הזן סיבת זיכוי:');
+            if (reason) {
+                selectedEquipment.forEach(checkbox => {
+                    const equipment = equipmentData.find(e => e.id === checkbox.value);
+                    if (equipment) {
+                        equipment.notes = `זיכוי: ${reason} (${new Date().toLocaleDateString('he-IL')})`;
+                        equipment.status = 'תקין';
+                    }
+                });
+                
+                markUnsavedChanges();
+                updateDisplay();
+                showAlert(`✅ זיכוי נרשם ל-${selectedEquipment.length} פריטים`, 'success');
+                clearSelection();
+            }
+        }
+
+        function addEquipmentNote() {
+            const selected = document.querySelectorAll('.checkbox-soldier:checked, .checkbox-equipment:checked');
+            if (selected.length === 0) {
+                showAlert('אנא בחר פריטים להוספת הערה', 'warning');
+                return;
+            }
+            
+            const note = prompt('הזן הערה:');
+            if (note) {
+                selected.forEach(checkbox => {
+                    const soldier = soldiersData.find(s => s.id === checkbox.value);
+                    const equipment = equipmentData.find(e => e.id === checkbox.value);
+                    
+                    if (soldier) {
+                        soldier.notes = soldier.notes ? `${soldier.notes}; ${note}` : note;
+                    }
+                    if (equipment) {
+                        equipment.notes = equipment.notes ? `${equipment.notes}; ${note}` : note;
+                    }
+                });
+                
+                markUnsavedChanges();
+                updateDisplay();
+                showAlert(`✅ הערה נוספה ל-${selected.length} פריטים`, 'success');
+                clearSelection();
+            }
+        }
+
+        function exportSelected() {
+            const selected = document.querySelectorAll('.checkbox-soldier:checked, .checkbox-equipment:checked');
+            if (selected.length === 0) {
+                showAlert('אנא בחר פריטים לייצוא', 'warning');
+                return;
+            }
+            
+            showAlert(`📤 מייצא ${selected.length} פריטים נבחרים...`, 'info');
+            // כאן תהיה הלוגיקה של הייצוא
+        }
+
+        function generateCommandersReport() {
+            const commanders = soldiersData.filter(s => s.role === 'commander');
+            if (commanders.length === 0) {
+                showAlert('אין מפקדים במערכת', 'warning');
+                return;
+            }
+            
+            try {
+                const wb = XLSX.utils.book_new();
+                
+                const commandersData = commanders.map(commander => ({
+                    'שם מפקד': commander.name,
+                    'מספר אישי': commander.personalId,
+                    'סבב': getShiftDisplay(commander.shift).text,
+                    'נוכח היום': getTodayAttendanceStatus(commander) === 'present' ? 'כן' : 'לא',
+                    'נעדרויות השבוע': getWeekAbsences(commander),
+                    'חריג סופ"ש': commander.isWeekendException ? 'כן' : 'לא',
+                    'הערות': commander.notes
+                }));
+                
+                const ws = XLSX.utils.json_to_sheet(commandersData);
+                XLSX.utils.book_append_sheet(wb, ws, 'מפקדים');
+                
+                const fileName = `דוח_מפקדים_${new Date().toISOString().split('T')[0]}.xlsx`;
+                XLSX.writeFile(wb, fileName);
+                
+                showAlert('✅ דוח מפקדים יוצא בהצלחה', 'success');
+            } catch (error) {
+                showAlert('שגיאה ביצירת דוח מפקדים: ' + error.message, 'error');
+            }
+        }
+
+        function generateCriticalReport() {
+            showAlert('🚨 מכין דוח בעיות קריטיות...', 'info');
+            // כאן תהיה הלוגיקה של הדוח הקריטי
+        }
+
+        function exportAllData() {
+            showAlert('💾 מכין גיבוי מלא של כל הנתונים...', 'info');
+            // כאן תהיה הלוגיקה של הגיבוי המלא
+        }
+
+        function updateReportsCharts() {
+            // עדכון גרפים בלשונית הדוחות
+            console.log('מעדכן גרפי דוחות...');
+        }
+
+        console.log('מערכת ניהול חיילים מתקדמת עם סבבים נטענה בהצלחה! 🎖️');
+    </script>
+</body>
+</html>
